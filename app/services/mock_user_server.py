@@ -17,21 +17,16 @@ class CredentialsRequest(BaseModel):
     password: str
 
 
-class LoginRequest(BaseModel):
-    email: str
-    password: str
-
-
 @app.post("/api/v1/auth/login")
-async def login(credentials: LoginRequest):
+async def login(credentials: CredentialsRequest):
     """Mock login endpoint that mimics am-user-management."""
     # In a real service, you'd validate against a database
     # For testing, we'll accept any credentials
     return {
         "user_id": "123e4567-e89b-12d3-a456-426614174000",
-        "email": credentials.email,
+        "email": credentials.username,  # username is expected to be email
         "status": "active",
-        "session_id": f"session_{credentials.email}_{int(time.time())}",
+        "session_id": f"session_{credentials.username}_{int(time.time())}",
         "last_login_at": "2025-10-01T12:00:00.000000+00:00",
         "requires_verification": False
     }
@@ -48,22 +43,9 @@ async def validate_credentials(credentials: CredentialsRequest):
     }
 
 
-@app.get("/internal/v1/users/{user_id}")
-async def get_user_by_id(user_id: str):
-    """Mock endpoint to get user by ID - matches sequence diagram."""
-    return {
-        "user_id": user_id,
-        "username": "testuser",
-        "email": "testuser@example.com",
-        "status": "ACTIVE",  # This is what the auth service checks
-        "scopes": ["read", "write", "admin"],
-        "active": True
-    }
-
-
 @app.get("/internal/users/{user_id}")
 async def get_user(user_id: str):
-    """Legacy endpoint for backward compatibility."""
+    """Mock endpoint to get user by ID."""
     return {
         "user_id": user_id,
         "username": "testuser",

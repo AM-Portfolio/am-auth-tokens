@@ -20,6 +20,10 @@ class TokenRequest(BaseModel):
     password: str
 
 
+class TokenByUserIdRequest(BaseModel):
+    user_id: str
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
@@ -83,6 +87,66 @@ async def create_token(
         user_id=validation_result.user_id,
         username=validation_result.username,
         email=validation_result.email
+    )
+
+
+@router.post("/tokens/by-user-id", response_model=TokenResponse)
+async def create_token_by_user_id(
+    request: TokenByUserIdRequest,
+    user_service: UserValidationService = Depends(get_user_validation_service)
+):
+    """
+    Create a new access token for a validated user ID.
+    This endpoint matches the sequence diagram where the client already has a user_id
+    from the am-user-management service login.
+    
+    Args:
+        request: Request containing user_id
+        user_service: User validation service dependency
+    
+    Returns:
+        TokenResponse with access token and user information
+    
+    Raises:
+        HTTPException: If user is not found or inactive
+    """
+    # Get user information by ID
+    user_data = await user_service.get_user_by_id(request.user_id)
+    
+    if not user_data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    # Check if user is active
+    if user_data.get("status") != "ACTIVE" and user_data.get("active") != True:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account is not active"
+        )
+    
+    # Create token with user data
+    token_user_data = {
+        "username": user_data.get("username", user_data.get("email")),
+        "email": user_data.get("email"),
+        "scopes": user_data.get("scopes", ["read"])
+    }
+    
+    access_token_expires = timedelta(minutes=settings.JWT_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        subject=request.user_id,
+        user_data=token_user_data,
+        expires_delta=access_token_expires
+    )
+    
+    return TokenResponse(
+        access_token=access_token,
+        token_type="bearer",
+        expires_in=settings.JWT_EXPIRE_MINUTES * 60,  # Convert to seconds
+        user_id=request.user_id,
+        username=token_user_data["username"],
+        email=token_user_data["email"]
     )
 
 

@@ -39,9 +39,9 @@ class UserValidationService:
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.post(
-                    f"{self.base_url}/internal/validate-credentials",
+                    f"{self.base_url}/api/v1/auth/login",
                     json={
-                        "username": credentials.username,
+                        "email": credentials.username,  # Assuming username is email
                         "password": credentials.password
                     },
                     headers={
@@ -104,7 +104,7 @@ class UserValidationService:
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.get(
-                    f"{self.base_url}/internal/users/{user_id}",
+                    f"{self.base_url}/internal/v1/users/{user_id}",
                     headers={
                         "Content-Type": "application/json"
                     }

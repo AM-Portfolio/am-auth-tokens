@@ -1,0 +1,333 @@
+# TESTING GUIDE - AM Authentication Microservices
+
+## 🚀 START SERVICES
+
+### Step 1: Start am-user-management service
+```bash
+cd /Users/munishm/Documents/am-user-management/
+python3 main.py
+# Should start on port 8000
+```
+
+### Step 2: Start am-auth-tokens service
+```bash
+cd /Users/munishm/Documents/AM-Repos/am-auth-tokens/
+python3 main.py
+# Should start on port 8080
+```
+
+### Step 3: Verify services are running
+```bash
+# Check user management service
+curl http://localhost:8000/health
+
+# Check auth tokens service  
+curl http://localhost:8080/health
+```
+
+---
+
+## 🧪 COMPLETE FLOW TESTING
+
+### Test 1: User Registration (Optional - if user doesn't exist)
+```bash
+curl -X POST "http://localhost:8000/api/v1/auth/register" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "test@example.com",
+    "password": "securePassword123",
+    "first_name": "John",
+    "last_name": "Doe",
+    "phone_number": "+1234567890"
+  }'
+```
+
+**Expected Response:**
+```json
+{
+  "user_id": "c381d32f-2cb6-4107-aeb6-e9e9d6eff1e7",
+  "email": "test@example.com", 
+  "status": "pending_verification",
+  "created_at": "2025-10-03T12:00:00.000000+00:00"
+}
+```
+
+### Test 2: User Login (Get user_id)
+```bash
+curl -X POST "http://localhost:8000/api/v1/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "test@example.com",
+    "password": "securePassword123"
+  }'
+```
+
+**Expected Response:**
+```json
+{
+  "user_id": "c381d32f-2cb6-4107-aeb6-e9e9d6eff1e7",
+  "email": "test@example.com",
+  "status": "active",
+  "session_id": "session_c381d32f-2cb6-4107-aeb6-e9e9d6eff1e7_1759236298",
+  "last_login_at": "2025-10-03T12:00:00.000000+00:00",
+  "requires_verification": false
+}
+```
+
+**📋 COPY THE USER_ID FROM THIS RESPONSE**
+
+### Test 3: Create JWT Token (Using user_id)
+```bash
+curl -X POST "http://localhost:8080/api/v1/tokens/by-user-id" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "c381d32f-2cb6-4107-aeb6-e9e9d6eff1e7"
+  }'
+```
+
+**Expected Response:**
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "bearer",
+  "expires_in": 86400,
+  "user_id": "c381d32f-2cb6-4107-aeb6-e9e9d6eff1e7",
+  "username": "test@example.com",
+  "email": "test@example.com"
+}
+```
+
+**📋 COPY THE ACCESS_TOKEN FROM THIS RESPONSE**
+
+### Test 4: Validate JWT Token
+```bash
+curl -X POST "http://localhost:8080/api/v1/validate" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }'
+```
+
+**Expected Response:**
+```json
+{
+  "valid": true,
+  "user_id": "c381d32f-2cb6-4107-aeb6-e9e9d6eff1e7",
+  "username": "test@example.com",
+  "email": "test@example.com",
+  "scopes": ["read", "write"],
+  "expires_at": "2025-10-04T12:00:00",
+  "message": "Token is valid"
+}
+```
+
+### Test 5: Test Internal Endpoint (Behind the scenes)
+```bash
+curl -X GET "http://localhost:8000/internal/v1/users/c381d32f-2cb6-4107-aeb6-e9e9d6eff1e7" \
+  -H "Content-Type: application/json"
+```
+
+**Expected Response:**
+```json
+{
+  "user_id": "c381d32f-2cb6-4107-aeb6-e9e9d6eff1e7",
+  "username": "test@example.com",
+  "email": "test@example.com",
+  "status": "ACTIVE",
+  "scopes": ["read", "write"],
+  "active": true
+}
+```
+
+---
+
+## 📦 POSTMAN TESTING
+
+### Import Collection:
+
+**Collection Name:** AM Authentication System
+
+### Environment Variables:
+```
+user_service_url = http://localhost:8000
+auth_service_url = http://localhost:8080
+user_id = {{dynamic - from login response}}
+access_token = {{dynamic - from token response}}
+```
+
+### Request Sequence:
+
+1. **Register User** (Optional)
+   - POST `{{user_service_url}}/api/v1/auth/register`
+   - Body: Raw JSON
+   ```json
+   {
+     "email": "test@example.com",
+     "password": "securePassword123",
+     "first_name": "John",
+     "last_name": "Doe"
+   }
+   ```
+
+2. **Login User**
+   - POST `{{user_service_url}}/api/v1/auth/login`
+   - Body: Raw JSON
+   ```json
+   {
+     "email": "test@example.com",
+     "password": "securePassword123"
+   }
+   ```
+   - **Test Script:**
+   ```javascript
+   pm.test("Login successful", function () {
+       pm.response.to.have.status(200);
+       var jsonData = pm.response.json();
+       pm.environment.set("user_id", jsonData.user_id);
+   });
+   ```
+
+3. **Create JWT Token**
+   - POST `{{auth_service_url}}/api/v1/tokens/by-user-id`
+   - Body: Raw JSON
+   ```json
+   {
+     "user_id": "{{user_id}}"
+   }
+   ```
+   - **Test Script:**
+   ```javascript
+   pm.test("Token created", function () {
+       pm.response.to.have.status(200);
+       var jsonData = pm.response.json();
+       pm.environment.set("access_token", jsonData.access_token);
+   });
+   ```
+
+4. **Validate JWT Token**
+   - POST `{{auth_service_url}}/api/v1/validate`
+   - Body: Raw JSON
+   ```json
+   {
+     "token": "{{access_token}}"
+   }
+   ```
+   - **Test Script:**
+   ```javascript
+   pm.test("Token is valid", function () {
+       pm.response.to.have.status(200);
+       var jsonData = pm.response.json();
+       pm.expect(jsonData.valid).to.be.true;
+   });
+   ```
+
+---
+
+## 🚨 TROUBLESHOOTING
+
+### Common Issues:
+
+#### 1. Service Not Starting
+```bash
+# Check if ports are in use
+lsof -i :8000
+lsof -i :8080
+
+# Kill existing processes
+pkill -f "uvicorn"
+pkill -f "python3 main.py"
+```
+
+#### 2. Connection Refused
+```bash
+# Verify services are running
+curl http://localhost:8000/health
+curl http://localhost:8080/health
+
+# Check service logs for errors
+```
+
+#### 3. User Not Found Error
+- Make sure user exists in database
+- Check user_id is correct UUID format
+- Verify internal endpoint is working
+
+#### 4. JWT Token Invalid
+- Check token wasn't truncated when copying
+- Verify token hasn't expired (24 hours)
+- Ensure JWT_SECRET is consistent
+
+#### 5. Internal Endpoint 404
+- Verify you added the endpoint to am-user-management
+- Check the endpoint path: `/internal/v1/users/{user_id}`
+- Restart the user management service
+
+---
+
+## ✅ SUCCESS CRITERIA
+
+**Your system is working correctly if:**
+
+1. ✅ Both services start without errors
+2. ✅ Health checks return 200 OK
+3. ✅ User can login and get user_id
+4. ✅ JWT token is created using user_id
+5. ✅ JWT token validates successfully
+6. ✅ Internal endpoint returns user details
+7. ✅ Complete flow works in under 5 seconds
+
+**If all tests pass: 🎉 YOUR MICROSERVICE AUTHENTICATION SYSTEM IS WORKING!**
+
+---
+
+## 🔄 AUTOMATED TESTING SCRIPT
+
+Create this test script for quick validation:
+
+```bash
+#!/bin/bash
+# test_auth_system.sh
+
+echo "🧪 Testing AM Authentication System..."
+
+# Test 1: Health checks
+echo "1. Health checks..."
+curl -s http://localhost:8000/health | grep -q "healthy" && echo "✅ User service healthy" || echo "❌ User service down"
+curl -s http://localhost:8080/health | grep -q "healthy" && echo "✅ Auth service healthy" || echo "❌ Auth service down"
+
+# Test 2: Login
+echo "2. Testing login..."
+USER_RESPONSE=$(curl -s -X POST "http://localhost:8000/api/v1/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "test@example.com", "password": "securePassword123"}')
+
+USER_ID=$(echo $USER_RESPONSE | python3 -c "import sys, json; print(json.load(sys.stdin)['user_id'])")
+echo "✅ Got user_id: $USER_ID"
+
+# Test 3: Create token
+echo "3. Testing JWT creation..."
+TOKEN_RESPONSE=$(curl -s -X POST "http://localhost:8080/api/v1/tokens/by-user-id" \
+  -H "Content-Type: application/json" \
+  -d "{\"user_id\": \"$USER_ID\"}")
+
+ACCESS_TOKEN=$(echo $TOKEN_RESPONSE | python3 -c "import sys, json; print(json.load(sys.stdin)['access_token'])")
+echo "✅ Got JWT token: ${ACCESS_TOKEN:0:20}..."
+
+# Test 4: Validate token
+echo "4. Testing JWT validation..."
+VALIDATE_RESPONSE=$(curl -s -X POST "http://localhost:8080/api/v1/validate" \
+  -H "Content-Type: application/json" \
+  -d "{\"token\": \"$ACCESS_TOKEN\"}")
+
+echo $VALIDATE_RESPONSE | grep -q '"valid": true' && echo "✅ Token is valid" || echo "❌ Token invalid"
+
+echo "🎉 Authentication system test complete!"
+```
+
+**Run with:**
+```bash
+chmod +x test_auth_system.sh
+./test_auth_system.sh
+```
+
+Your complete microservice authentication system is ready for testing!

@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     JWT_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
     
     # User Management Service
-    USER_SERVICE_URL: str = os.getenv("USER_SERVICE_URL", "http://localhost:8001")
+    USER_SERVICE_URL: str = os.getenv("USER_SERVICE_URL", "http://localhost:8000")
     USER_SERVICE_TIMEOUT: int = 30
     
     # API Configuration
