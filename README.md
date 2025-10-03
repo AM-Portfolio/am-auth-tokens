@@ -38,9 +38,13 @@ am-auth-tokens/
 ├── main.py                        # FastAPI application entry point
 ├── requirements.txt               # Python dependencies
 ├── Dockerfile                     # Container configuration
-├── docker-compose.yml             # Multi-service orchestration
+├── docker-compose.yml             # Real services orchestration
+├── setup-env.sh                   # Environment setup script
 ├── .env.example                   # Environment variables template
-├── mock-user-service.conf         # Mock user service for development
+├── .env.local                     # Local development config
+├── .env.docker                    # Docker environment config
+├── .env.production                # Production template
+├── ENVIRONMENT_GUIDE.md           # Environment setup guide
 └── README.md                      # This file
 ```
 
