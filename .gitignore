@@ -23,6 +23,7 @@ MANIFEST
 
 # Environment variables
 .env
+.env.backup.*
 .venv
 env/
 venv/
